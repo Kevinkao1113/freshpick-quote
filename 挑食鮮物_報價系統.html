@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>挑食鮮物｜報價系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+const CFG = {
+  PRODUCTS_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR9w44BurmXwQ7IXLU9iF6f4TZfzbEyNtWP7oG93G0DQvBYZ6ViPuUPnGId_46JZIxNAtHxwKDuNWaL/pub?gid=2097472859&single=true&output=csv',
+  ACCOUNTS_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR9w44BurmXwQ7IXLU9iF6f4TZfzbEyNtWP7oG93G0DQvBYZ6ViPuUPnGId_46JZIxNAtHxwKDuNWaL/pub?gid=1973185289&single=true&output=csv',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbxNz6NRM7Wyv659gbJqjaKW3QTQnKtzYUt-IDGqX3tXiQj5bCJjUVgOEsPuIRMkfUEDSw/exec'
+};
+</script>
+</head>
+<body>
+<style>
+:root{--g:#3a5c1e;--gd:#2a4215;--gbdr:#c4d49a}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Noto Sans TC',sans-serif;font-size:14px;color:#1a1a1a;background:#fff;-webkit-text-size-adjust:100%}
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--g);position:relative;overflow:hidden}
+#loginScreen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%,rgba(255,255,255,.06),transparent 60%)}
+.lcard{background:#fff;border-radius:18px;padding:40px 36px;width:100%;max-width:360px;box-shadow:0 24px 64px rgba(0,20,10,.4);position:relative;z-index:1;margin:20px}
+.lc-logo{width:64px;height:64px;margin:0 auto 14px;display:block;object-fit:contain}
+.lc-brand{text-align:center;font-size:18px;font-weight:700;color:var(--g);letter-spacing:1px;margin-bottom:4px}
+.lc-sub{text-align:center;font-size:11px;color:#888;margin-bottom:28px}
+.lc-err{display:none;background:#fff0f0;border:1px solid #fcc;border-radius:8px;padding:10px 14px;font-size:12px;color:#c0392b;margin-bottom:14px}
+.lc-err.show{display:block}
+.lfg{margin-bottom:14px}
+.lfg label{display:block;font-size:11px;font-weight:600;color:#666;margin-bottom:5px}
+.lfg input{width:100%;padding:11px 14px;border:1.5px solid #e0e0e0;border-radius:9px;font-size:14px;font-family:inherit;outline:none;background:#f9f9f9;transition:border-color .15s}
+.lfg input:focus{border-color:var(--g);background:#fff}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:42px}
+.pw-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#999;font-size:16px;line-height:1}
+.btn-login{width:100%;padding:12px;background:var(--g);color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px}
+.btn-login:disabled{background:#aaa;cursor:not-allowed}
+.spin-sm{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;display:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+.lc-note{text-align:center;font-size:11px;color:#bbb;margin-top:16px}
+#app{display:none;flex-direction:column;height:100vh;max-width:480px;margin:0 auto;border-left:0.5px solid #e0e0e0;border-right:0.5px solid #e0e0e0}
+#app.ready{display:flex}
+.topbar{background:var(--g);color:#fff;padding:9px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.tb-left{display:flex;align-items:center;gap:9px}
+.tb-logo{width:28px;height:28px;background:#fff;border-radius:6px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.tb-logo img{width:100%;height:100%;object-fit:contain}
+.tb-title{font-size:14px;font-weight:500;letter-spacing:.5px}
+.tb-user{display:flex;align-items:center;gap:7px}
+.tb-avatar{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.tb-name{font-size:11px;opacity:.85}
+.tb-logout{background:rgba(255,255,255,.15);color:#fff;border:none;padding:4px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit}
+.tabbar{display:flex;background:#f5f5f5;border-bottom:1px solid #e0e0e0;flex-shrink:0}
+.tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:#888;display:flex;align-items:center;justify-content:center;gap:5px;user-select:none}
+.tab.active{color:var(--g);border-bottom-color:var(--g);background:#fff}
+.tbdg{background:var(--g);color:#fff;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:700;min-width:16px;text-align:center}
+.content{flex:1;position:relative;overflow:hidden}
+.panel{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;display:none}
+.panel.active{display:block}
+.panel::-webkit-scrollbar{width:2px}
+.panel::-webkit-scrollbar-thumb{background:#ddd;border-radius:1px}
+.swrap{position:sticky;top:0;z-index:5;padding:10px 13px;background:#fff;border-bottom:1px solid #eee}
+.sinp{width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:10px;font-size:14px;font-family:inherit;background:#f9f9f9;outline:none}
+.sinp:focus{border-color:var(--g);background:#fff}
+.cg{border-bottom:1px solid #f0f0f0}
+.chdr{display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;background:#f7f7f7;user-select:none}
+.carr{font-size:10px;color:#999;transition:transform .15s;width:11px;text-align:center;flex-shrink:0}
+.chdr.open .carr{transform:rotate(90deg)}
+.cnm{font-size:14px;font-weight:500;flex:1}
+.cct{font-size:10px;padding:1px 7px;border-radius:10px;background:#e8f4ee;color:var(--g);font-weight:600}
+.cbody{display:none}
+.cbody.open{display:block}
+.pcard{display:flex;align-items:flex-start;gap:11px;padding:12px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;-webkit-tap-highlight-color:transparent;border-left:3px solid transparent}
+.pcard:active{background:#f7f7f7}
+.pcard.sel{border-left-color:var(--g);background:#f9fdf5}
+.pchk{width:20px;height:20px;flex-shrink:0;accent-color:var(--g);cursor:pointer;margin-top:2px}
+.pi{flex:1;min-width:0}
+.pnm{font-size:14px;font-weight:500;display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:2px}
+.brnd{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--g);color:#fff;flex-shrink:0}
+.pl{font-size:12px;color:#666;margin-top:1px;line-height:1.5}
+.pprice{display:flex;gap:16px;margin-top:5px}
+.pp-item{display:flex;align-items:center;gap:4px}
+.pp-lbl{font-size:11px;color:#888}
+.pp-val{font-size:13px;font-weight:600;color:var(--g)}
+.fsec{padding:14px;border-bottom:1px solid #eee}
+.fld{margin-bottom:12px}
+.fld:last-child{margin-bottom:0}
+.fld label{display:block;font-size:11px;font-weight:600;color:#666;margin-bottom:4px}
+.fld input,.fld textarea{width:100%;padding:10px 13px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;background:#f9f9f9;outline:none;-webkit-appearance:none;color:#1a1a1a}
+.fld input:focus,.fld textarea:focus{border-color:var(--g);background:#fff}
+.fld textarea{resize:none;height:52px;line-height:1.5}
+.fld .ro{color:#888;background:#f0f0f0}
+.ssec{padding:13px 14px}
+.sshdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sshdr h3{font-size:11px;font-weight:600;color:#888;letter-spacing:.5px;text-transform:uppercase}
+.clrbtn{font-size:12px;color:#c0392b;background:none;border:none;cursor:pointer;font-family:inherit;padding:4px 8px;border-radius:6px}
+.icard{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid var(--g)}
+.icard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:7px}
+.ititle{display:flex;align-items:center;flex-wrap:wrap;gap:5px;flex:1}
+.inm{font-size:14px;font-weight:500}
+.ibrnd{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--g);color:#fff}
+.iorig{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #ddd;color:#666}
+.irm{background:none;border:none;cursor:pointer;color:#c0392b;font-size:18px;line-height:1;padding:2px 5px;border-radius:4px;flex-shrink:0}
+.imeta{margin-bottom:10px;display:flex;flex-wrap:wrap;gap:4px}
+.mtag{display:inline-flex;padding:3px 7px;border:1px solid #eee;border-radius:6px;font-size:11px;color:#666}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.pcell{display:flex;flex-direction:column;gap:3px;border:1px solid #e8e8e8;border-radius:8px;padding:9px 10px}
+.pcell label{font-size:10px;font-weight:600;color:#888;letter-spacing:.3px}
+.pval{font-size:18px;font-weight:700;color:var(--g);margin-top:2px}
+.pval.na{color:#ccc;font-size:14px;font-weight:400}
+.rem-i{width:100%;padding:8px 11px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;background:#fff;color:#1a1a1a;outline:none;-webkit-appearance:none}
+.rem-i:focus{border-color:var(--g)}
+.empty{text-align:center;padding:44px 20px;color:#bbb;font-size:13px}
+.ei{font-size:28px;margin-bottom:10px}
+.btm{padding:11px 14px;background:#fff;border-top:1px solid #eee;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
+.cinfo{font-size:12px;color:#888}
+.cinfo strong{color:var(--g);font-size:16px}
+.btn-gen{background:var(--g);color:#fff;border:none;padding:11px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:7px}
+.btn-gen:disabled{background:#aaa;cursor:not-allowed}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;display:none;align-items:flex-end;justify-content:center}
+.ov.open{display:flex}
+.mdl{background:#fff;width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:24px 22px 36px;text-align:center}
+.mdl-icon{font-size:48px;margin-bottom:12px}
+.mdl-title{font-size:18px;font-weight:700;color:var(--g);margin-bottom:6px}
+.mdl-sub{font-size:13px;color:#888;margin-bottom:20px;line-height:1.6}
+.mdl-fname{font-size:12px;color:#666;background:#f5f5f5;border-radius:8px;padding:8px 12px;margin-bottom:20px;word-break:break-all;text-align:left}
+.btn-dl{display:block;width:100%;padding:13px;background:var(--g);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;text-decoration:none;margin-bottom:10px;text-align:center}
+.btn-close{display:block;width:100%;padding:11px;background:#f5f5f5;color:#666;border:none;border-radius:10px;font-size:14px;font-family:inherit;cursor:pointer}
+.ov-loading{position:fixed;inset:0;background:rgba(255,255,255,.92);z-index:1000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.ov-loading.show{display:flex}
+.spin-lg{width:40px;height:40px;border:3px solid #e0e0e0;border-top-color:var(--g);border-radius:50%;animation:sp .7s linear infinite}
+.loading-txt{font-size:14px;color:#666}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:9999;display:none;white-space:nowrap}
+.toast.err{background:#c0392b}
+.toast.show{display:block}
+</style>
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="lcard">
+    <img class="lc-logo" id="loginLogo" src="data:image/webp;base64,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" alt="挑食鮮物">
+    <div class="lc-brand">挑食鮮物</div>
+    <div class="lc-sub">業務報價系統</div>
+    <div class="lc-err" id="lErr"></div>
+    <div class="lfg"><label>帳號</label><input type="text" id="lUser" autocomplete="username" placeholder="輸入帳號" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="lfg"><label>密碼</label>
+      <div class="pw-wrap">
+        <input type="password" id="lPass" autocomplete="current-password" placeholder="輸入密碼" onkeydown="if(event.key==='Enter')doLogin()">
+        <button class="pw-eye" onclick="togglePw()">👁</button>
+      </div>
+    </div>
+    <button class="btn-login" id="lBtn" onclick="doLogin()">
+      <div class="spin-sm" id="lSpin"></div><span id="lBtnTxt">登入</span>
+    </button>
+    <div class="lc-note">忘記密碼請聯繫管理員</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="tb-logo"><img id="appLogo" src="data:image/webp;base64,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" alt="挑食鮮物"></div>
+      <div class="tb-title">挑食鮮物｜報價系統</div>
+    </div>
+    <div class="tb-user">
+      <div class="tb-avatar" id="tbAvatar">-</div>
+      <div class="tb-name" id="tbName">-</div>
+      <button class="tb-logout" onclick="doLogout()">登出</button>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab active" data-t="cat" onclick="swTab('cat')">產品目錄</div>
+    <div class="tab" data-t="sel" onclick="swTab('sel')">已選品項 <span class="tbdg" id="tbdg" style="display:none">0</span></div>
+  </div>
+  <div class="content">
+    <div class="panel active" id="p-cat">
+      <div class="swrap"><input class="sinp" type="text" id="srch" placeholder="搜尋品名、品牌、產地…"></div>
+      <div id="catC"><div class="empty"><div class="ei">⏳</div>載入產品資料中…</div></div>
+    </div>
+    <div class="panel" id="p-sel">
+      <div class="fsec">
+        <div class="fld"><label>客戶名稱 *</label><input type="text" id="custN" placeholder="請輸入客戶名稱"></div>
+        <div class="fld"><label>報價日期</label><input type="text" id="qDate" class="ro" readonly></div>
+        <div class="fld"><label>業務姓名</label><input type="text" id="salesDisp" class="ro" readonly></div>
+        <div class="fld"><label>整份備註</label><textarea id="rmk"></textarea></div>
+      </div>
+      <div class="ssec">
+        <div class="sshdr"><h3>已選品項</h3><button class="clrbtn" onclick="clearAll()">✕ 清空全部</button></div>
+        <div id="selC"><div class="empty"><div class="ei">📋</div>請切換到「產品目錄」勾選</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="btm">
+    <div class="cinfo">已選 <strong id="cnt">0</strong> 項</div>
+    <button class="btn-gen" id="genBtn" onclick="generatePDF()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      產生報價單 PDF
+    </button>
+  </div>
+</div>
+
+<!-- Result Modal -->
+<div class="ov" id="resultOv">
+  <div class="mdl">
+    <div class="mdl-icon">✅</div>
+    <div class="mdl-title">報價單已產生！</div>
+    <div class="mdl-sub">PDF 已儲存至雲端資料夾<br>並記錄到輸出記錄工作表</div>
+    <div class="mdl-fname" id="mdlFname"></div>
+    <a class="btn-dl" id="dlBtn" href="#" target="_blank">⬇ 開啟 / 下載 PDF</a>
+    <button class="btn-close" onclick="closeResult()">關閉</button>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="ov-loading" id="loadingOv">
+  <div class="spin-lg"></div>
+  <div class="loading-txt">產生 PDF 中，請稍候…</div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+const C = {ACT:0,CAT:2,ORIG:3,BRD:4,NM:5,SPEC:6,WT:7,BWt:8,PKG:9,PT:10,MP:12,SP:13};
+let accounts=[],PRODS=[],selIds=new Set(),iRem={},currentUser=null,aTab='cat';
+const catOpen={};
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* LOGIN */
+function togglePw(){const i=document.getElementById('lPass');i.type=i.type==='password'?'text':'password';}
+function setLL(on){document.getElementById('lBtn').disabled=on;document.getElementById('lSpin').style.display=on?'block':'none';document.getElementById('lBtnTxt').textContent=on?'驗證中…':'登入';}
+function showErr(m){const e=document.getElementById('lErr');e.textContent=m;e.classList.add('show');}
+function hideErr(){document.getElementById('lErr').classList.remove('show');}
+
+function doLogin(){
+  const user=document.getElementById('lUser').value.trim();
+  const pass=document.getElementById('lPass').value;
+  if(!user||!pass){showErr('請輸入帳號和密碼');return;}
+  setLL(true);hideErr();
+  const check=()=>{
+    const found=accounts.find(a=>a.acc===user&&a.pwd===pass);
+    if(!found){setLL(false);showErr('帳號或密碼錯誤，請再試一次。');document.getElementById('lPass').value='';return;}
+    currentUser=found;initApp();
+  };
+  if(accounts.length){check();return;}
+  fetch(CFG.ACCOUNTS_CSV).then(r=>r.text()).then(csv=>{
+    accounts=parseCSV(csv).map(r=>({acc:(r[0]||'').trim(),pwd:(r[1]||'').trim(),name:(r[2]||'').trim(),line:(r[3]||'').trim(),phone:(r[4]||'').trim()})).filter(a=>a.acc);
+    check();
+  }).catch(()=>{setLL(false);showErr('帳號資料載入失敗');});
+}
+
+function doLogout(){
+  currentUser=null;selIds.clear();iRem={};
+  document.getElementById('app').classList.remove('ready');
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('lUser').value='';document.getElementById('lPass').value='';
+  setLL(false);hideErr();
+}
+
+function initApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').classList.add('ready');
+  const name=currentUser.name;
+  document.getElementById('tbAvatar').textContent=name?name.charAt(0):'?';
+  document.getElementById('tbName').textContent=name;
+  document.getElementById('salesDisp').value=name;
+  document.getElementById('qDate').value=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+  if(PRODS.length){renderCat();return;}
+  loadProducts();
+}
+
+/* PRODUCTS */
+function loadProducts(){
+  document.getElementById('catC').innerHTML='<div class="empty"><div class="ei">⏳</div>載入產品資料中…</div>';
+  fetch(CFG.PRODUCTS_CSV).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text();}).then(csv=>{
+    PRODS=parseCSV(csv).map((r,i)=>({id:i,cat:String(r[C.CAT]||'其他').trim(),active:Number(r[C.ACT])===1||String(r[C.ACT]).toUpperCase()==='TRUE',raw:r})).filter(p=>p.active);
+    renderCat();
+  }).catch(err=>{document.getElementById('catC').innerHTML=`<div class="empty" style="color:#c0392b"><div class="ei">⚠️</div>無法載入產品資料<br><small>${err.message}</small></div>`;});
+}
+
+function parseCSV(text){return text.trim().split('\n').slice(1).map(r=>splitRow(r)).filter(r=>r.some(v=>v.trim()));}
+function splitRow(row){const res=[];let cur='',inQ=false;for(const c of row){if(c==='"'){inQ=!inQ}else if(c===','&&!inQ){res.push(cur);cur=''}else{cur+=c}}res.push(cur);return res;}
+
+/* CATALOG */
+function renderCat(q=''){
+  q=q.toLowerCase();
+  const vis=q?PRODS.filter(p=>[p.raw[C.NM],p.raw[C.ORIG],p.raw[C.BRD],p.raw[C.SPEC],p.cat].some(v=>String(v).toLowerCase().includes(q))):PRODS;
+  const gs={};vis.forEach(p=>{if(!gs[p.cat])gs[p.cat]=[];gs[p.cat].push(p);});
+  const el=document.getElementById('catC');
+  if(!Object.keys(gs).length){el.innerHTML='<div class="empty"><div class="ei">🔍</div>沒有符合的品項</div>';return;}
+  el.innerHTML=Object.entries(gs).map(([cat,prods])=>{
+    if(catOpen[cat]===undefined)catOpen[cat]=true;
+    const open=q||catOpen[cat];
+    const cid='cg'+cat.replace(/[^\w\u4e00-\u9fff]/g,'_');
+    return`<div class="cg">
+      <div class="chdr${open?' open':''}" data-cat="${esc(cat)}" data-cid="${cid}" onclick="togCat(this)">
+        <span class="carr">▶</span><span class="cnm">${esc(cat)}</span><span class="cct">${prods.length}</span>
+      </div>
+      <div class="cbody${open?' open':''}" id="${cid}">
+        ${prods.map(p=>{
+          const r=p.raw,nm=esc(r[C.NM]),br=esc(r[C.BRD]),or=esc(r[C.ORIG]);
+          const sp=esc(r[C.SPEC]),wt=esc(r[C.WT]),bw=r[C.BWt]&&r[C.BWt]!=='-'?esc(r[C.BWt]):'';
+          const pk=r[C.PKG]&&r[C.PKG]!=='-'?esc(r[C.PKG]):'';
+          const mp=r[C.MP]||'',sp2=r[C.SP]||'';
+          return`<div class="pcard${selIds.has(p.id)?' sel':''}" onclick="tog(${p.id})">
+            <input class="pchk" type="checkbox"${selIds.has(p.id)?' checked':''} onclick="event.stopPropagation();tog(${p.id})">
+            <div class="pi">
+              <div class="pnm"><span>${nm}</span>${br?`<span class="brnd">${br}</span>`:''}</div>
+              <div class="pl">${or}${br?' · '+br:''}</div>
+              <div class="pl">${sp}${wt?' · '+wt:''}${bw?' / '+bw:''}</div>
+              ${pk?`<div class="pl">${pk}</div>`:''}
+              ${(mp||sp2)?`<div class="pprice">
+                ${mp?`<div class="pp-item"><span class="pp-lbl">整件</span><span class="pp-val">$${mp}</span></div>`:''}
+                ${sp2?`<div class="pp-item"><span class="pp-lbl">散拿</span><span class="pp-val">$${sp2}</span></div>`:''}
+              </div>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togCat(hdr){const cat=hdr.dataset.cat,cid=hdr.dataset.cid;catOpen[cat]=!catOpen[cat];hdr.classList.toggle('open',catOpen[cat]);document.getElementById(cid)?.classList.toggle('open',catOpen[cat]);}
+document.getElementById('srch').addEventListener('input',e=>renderCat(e.target.value));
+
+/* SELECTION */
+function tog(id){selIds.has(id)?(selIds.delete(id),delete iRem[id]):selIds.add(id);refresh();}
+function removeItem(id){selIds.delete(id);delete iRem[id];refresh();}
+function clearAll(){selIds.clear();iRem={};refresh();}
+function refresh(){
+  renderCat(document.getElementById('srch').value);
+  if(aTab==='sel')renderSel();
+  const n=selIds.size;
+  document.getElementById('cnt').textContent=n;
+  const b=document.getElementById('tbdg');b.textContent=n;b.style.display=n?'inline-block':'none';
+}
+
+function swTab(t){
+  aTab=t;
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.t===t));
+  document.getElementById('p-cat').classList.toggle('active',t==='cat');
+  document.getElementById('p-sel').classList.toggle('active',t==='sel');
+  if(t==='sel')renderSel();
+}
+
+function renderSel(){
+  const el=document.getElementById('selC');
+  if(!selIds.size){el.innerHTML='<div class="empty"><div class="ei">📋</div>尚未選擇品項<br><small style="display:block;margin-top:6px">請切換到「產品目錄」勾選</small></div>';return;}
+  el.innerHTML=[...selIds].map(id=>PRODS.find(p=>p.id===id)).filter(Boolean).map(p=>{
+    const r=p.raw;
+    const bw=r[C.BWt]&&r[C.BWt]!=='-'?r[C.BWt]:'';
+    const pk=r[C.PKG]&&r[C.PKG]!=='-'?r[C.PKG]:'';
+    const mkv=ci=>{const v=esc(String(r[ci]??''));return v?`<span class="pval">$${v}</span>`:`<span class="pval na">-</span>`;};
+    return`<div class="icard">
+      <div class="icard-top">
+        <div class="ititle">
+          <span class="inm">${esc(r[C.NM])}</span>
+          ${r[C.BRD]?`<span class="ibrnd">${esc(r[C.BRD])}</span>`:''}
+          <span class="iorig">${esc(r[C.ORIG])}</span>
+        </div>
+        <button class="irm" onclick="removeItem(${p.id})">✕</button>
+      </div>
+      <div class="imeta">
+        <span class="mtag">${esc(r[C.SPEC])}</span>
+        <span class="mtag">毛重 ${esc(r[C.WT])}</span>
+        ${bw?`<span class="mtag">下盤 ${esc(bw)}</span>`:''}
+        ${pk?`<span class="mtag">${esc(pk)}</span>`:''}
+        ${r[C.PT]?`<span class="mtag">${esc(r[C.PT])}</span>`:''}
+      </div>
+      <div class="pgrid">
+        <div class="pcell"><label>整件價</label>${mkv(C.MP)}</div>
+        <div class="pcell"><label>散拿價</label>${mkv(C.SP)}</div>
+      </div>
+      <input class="rem-i" type="text" value="${esc(iRem[p.id]||'')}" oninput="iRem[${p.id}]=this.value" placeholder="品項備註（選填）">
+    </div>`;
+  }).join('');
+}
+
+/* GENERATE PDF via GAS */
+function generatePDF(){
+  if(!selIds.size){toast('請至少勾選一項品項',true);return;}
+  const cust=document.getElementById('custN').value.trim();
+  if(!cust){toast('請填寫客戶名稱',true);return;}
+  const dt=document.getElementById('qDate').value;
+  const rmk=document.getElementById('rmk').value.trim();
+  const dateNum=dt.replace(/[^0-9]/g,'').substring(0,8);
+  const quoteNo='FP-'+dateNum+'-'+String(Math.floor(Math.random()*900)+100);
+  const items=[...selIds].map(id=>PRODS.find(p=>p.id===id)).filter(Boolean).map(p=>{
+    const r=p.raw;
+    return{cat:p.cat,orig:r[C.ORIG]||'',brand:r[C.BRD]||'',name:r[C.NM]||'',spec:r[C.SPEC]||'',
+      weight:r[C.WT]||'',baseWeight:r[C.BWt]||'',pkg:r[C.PKG]||'',priceType:r[C.PT]||'',
+      wholePrice:r[C.MP]||'',sellPrice:r[C.SP]||'',remark:iRem[p.id]||''};
+  });
+  const payload={quoteNo,customerName:cust,quoteDate:dt,salesAccount:currentUser.acc,
+    salesName:currentUser.name,salesLine:currentUser.line,salesPhone:currentUser.phone,remark:rmk,items};
+  const fname=`${dateNum}_${cust}_${quoteNo}_挑食.pdf`;
+  document.getElementById('loadingOv').classList.add('show');
+  document.getElementById('genBtn').disabled=true;
+
+  fetch(CFG.GAS_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(r=>r.json())
+    .then(res=>{
+      document.getElementById('loadingOv').classList.remove('show');
+      document.getElementById('genBtn').disabled=false;
+      if(!res.success){toast('產生失敗：'+(res.error||'未知錯誤'),true);return;}
+      document.getElementById('mdlFname').textContent=res.fileName||fname;
+      const dlBtn=document.getElementById('dlBtn');
+      dlBtn.href=res.downloadUrl||res.pdfUrl||'#';
+      document.getElementById('resultOv').classList.add('open');
+    })
+    .catch(err=>{
+      document.getElementById('loadingOv').classList.remove('show');
+      document.getElementById('genBtn').disabled=false;
+      toast('連線失敗：請確認 GAS 網址是否正確',true);
+    });
+}
+
+function closeResult(){document.getElementById('resultOv').classList.remove('open');}
+function toast(msg,err){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');setTimeout(()=>t.className='toast',3500);}
+</script>
+</body>
+</html>
